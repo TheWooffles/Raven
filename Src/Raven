@@ -372,7 +372,7 @@ function EspObject:Render()
 	if visible.healthBar.Visible then
 		local barFrom = corners.topLeft - HEALTH_BAR_OFFSET
 		local barTo = corners.bottomLeft - HEALTH_BAR_OFFSET
-		local healthPercent = self.health / self.maxHealth
+		local healthPercent = math.clamp(self.health / math.max(self.maxHealth, 1), 0, 1)
 		
 		local healthBar = visible.healthBar
 		healthBar.To = barTo
@@ -391,7 +391,7 @@ function EspObject:Render()
 	if visible.healthText.Visible then
 		local barFrom = corners.topLeft - HEALTH_BAR_OFFSET
 		local barTo = corners.bottomLeft - HEALTH_BAR_OFFSET
-		local healthPercent = self.health / self.maxHealth
+		local healthPercent = math.clamp(self.health / math.max(self.maxHealth, 1), 0, 1)
 		
 		local healthText = visible.healthText
 		healthText.Text = round(self.health) .. "hp"
@@ -401,7 +401,8 @@ function EspObject:Render()
 		healthText.Transparency = options.healthTextColor[2]
 		healthText.Outline = options.healthTextOutline
 		healthText.OutlineColor = parseColor(self, options.healthTextOutlineColor, true)
-		healthText.Position = barTo + (barFrom - barTo) * healthPercent - healthText.TextBounds * 0.5 - HEALTH_TEXT_OFFSET
+		local textBounds = healthText.TextBounds or v2new(0, 0)
+		healthText.Position = barTo + (barFrom - barTo) * healthPercent - textBounds * 0.5 - HEALTH_TEXT_OFFSET
 	end
 	
 	-- Name
@@ -414,7 +415,8 @@ function EspObject:Render()
 		name.Transparency = options.nameColor[2]
 		name.Outline = options.nameOutline
 		name.OutlineColor = parseColor(self, options.nameOutlineColor, true)
-		name.Position = (corners.topLeft + corners.topRight) * 0.5 - v2new(0, name.TextBounds.Y) - NAME_OFFSET
+		local textBounds = name.TextBounds or v2new(0, 0)
+		name.Position = (corners.topLeft + corners.topRight) * 0.5 - v2new(0, textBounds.Y) - NAME_OFFSET
 	end
 	
 	-- Distance
@@ -442,8 +444,9 @@ function EspObject:Render()
 		weapon.Transparency = options.weaponColor[2]
 		weapon.Outline = options.weaponOutline
 		weapon.OutlineColor = parseColor(self, options.weaponOutlineColor, true)
+		local distanceTextBounds = visible.distance.Visible and (visible.distance.TextBounds or v2new(0, 0)) or v2new(0, 0)
 		weapon.Position = (corners.bottomLeft + corners.bottomRight) * 0.5 +
-			(visible.distance.Visible and DISTANCE_OFFSET + v2new(0, visible.distance.TextBounds.Y) or VECTOR2_ZERO)
+			(visible.distance.Visible and DISTANCE_OFFSET + v2new(0, distanceTextBounds.Y) or VECTOR2_ZERO)
 	end
 	
 	-- Tracer
@@ -468,7 +471,7 @@ function EspObject:Render()
 	end
 	
 	-- Off-screen arrow (FIXED: uncommented)
-	-- hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
+	hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
 	hidden.arrowOutline.Visible = hidden.arrow.Visible and options.offScreenArrowOutline
 	
 	if hidden.arrow.Visible and self.direction then
