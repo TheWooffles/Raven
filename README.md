@@ -1,4 +1,3 @@
-
 # Raven
 
 Raven is a Luau-based ESP (Extra Sensory Perception) cheat designed for Roblox. It provides in-game advantages by displaying information about other players and the environment. Please use responsibly and at your own risk.
@@ -15,36 +14,40 @@ Raven is a Luau-based ESP (Extra Sensory Perception) cheat designed for Roblox. 
 
 Raven enhances your Roblox gameplay by providing real-time information about the game world. It's built using Luau, Roblox's scripting language, and offers features such as:
 
--   Player ESP: See player locations, health, and names through walls.
--   Item ESP: Locate valuable items and resources easily.
--   Customizable UI: Adjust the cheat's appearance and functionality to your preferences.
+- Player ESP: See player locations, health, and names through walls.
+- Item ESP: Locate valuable items and resources easily.
+- Customizable UI: Adjust the cheat's appearance and functionality to your preferences.
 
 **Warning:** Using cheats can violate Roblox's terms of service and may result in account bans.
 
 ## Installation
 
 1.  **Prerequisites:**
-    -   A Roblox client
-    -   An injector capable of executing Luau scripts (e.g., Krnl, Synapse X)
+
+    - A Roblox client
+    - An injector capable of executing Luau scripts (e.g., Xeno, Delta)
 
 2.  **Download the script:**
-    -   Obtain the `raven.lua` script from [link to download or repository].
+
+    - Obtain the `raven.lua` script from [Raven](https://raw.githubusercontent.com/TheWooffles/Raven/master/Raven).
 
 3.  **Injection:**
-    -   Open your chosen Roblox injector.
-    -   Start Roblox.
-    -   Inject the `raven.lua` script into the Roblox process.
+    - Open your chosen Roblox injector.
+    - Start Roblox.
+    - Inject the `raven.lua` script into the Roblox process.
 
 ## Usage
 
 1.  **Open the UI:**
-    -   Once injected, the Raven UI should appear in-game. If not, check your injector's console for any errors.
+
+    - Once injected, the Raven UI should appear in-game. If not, check your injector's console for any errors.
 
 2.  **Customize settings:**
-    -   Use the UI to enable or disable ESP features, adjust colors, and configure other settings.
+
+    - Use the UI to enable or disable ESP features, adjust colors, and configure other settings.
 
 3.  **Enjoy!**
-    -   Take advantage of the enhanced information to improve your gameplay.
+    - Take advantage of the enhanced information to improve your gameplay.
 
 ## Contributing
 
