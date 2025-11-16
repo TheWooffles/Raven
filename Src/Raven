@@ -467,9 +467,9 @@ function EspObject:Render()
 		tracerOutline.From = tracer.From
 	end
 	
-	-- Off-screen arrow
-	-- hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
-	-- hidden.arrowOutline.Visible = hidden.arrow.Visible and options.offScreenArrowOutline
+	-- Off-screen arrow (FIXED: uncommented)
+	hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
+	hidden.arrowOutline.Visible = hidden.arrow.Visible and options.offScreenArrowOutline
 	
 	if hidden.arrow.Visible and self.direction then
 		local arrow = hidden.arrow
@@ -654,9 +654,9 @@ local EspInterface = {
 	},
 	teamSettings = {
 		enemy = {
-			enabled = false,
-			box = false,
-			boxColor = { c3new(1, 0, 0), 1 },
+			enabled = true,  -- Changed to true for testing
+			box = true,      -- Changed to true for testing
+			boxColor = { c3new(1, 0, 0), 1 },  -- RED for enemies
 			boxOutline = true,
 			boxOutlineColor = { c3new(), 1 },
 			boxFill = false,
@@ -703,7 +703,7 @@ local EspInterface = {
 		friendly = {
 			enabled = false,
 			box = false,
-			boxColor = { c3new(0, 1, 0), 1 },
+			boxColor = { c3new(0, 1, 0), 1 },  -- GREEN for friendlies
 			boxOutline = true,
 			boxOutlineColor = { c3new(), 1 },
 			boxFill = false,
