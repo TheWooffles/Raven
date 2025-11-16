@@ -468,7 +468,7 @@ function EspObject:Render()
 	end
 	
 	-- Off-screen arrow (FIXED: uncommented)
-	hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
+	-- hidden.arrow.Visible = enabled and (not onScreen) and options.offScreenArrow
 	hidden.arrowOutline.Visible = hidden.arrow.Visible and options.offScreenArrowOutline
 	
 	if hidden.arrow.Visible and self.direction then
