@@ -5,6 +5,7 @@ end
 _G.Raven = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheWooffles/Raven/master/Src/Raven"))()
 _G.Raven.teamSettings.enemy.enabled = true
 _G.Raven.teamSettings.enemy.box = true
+_G.Raven.teamSettings.enemy.box3d = true
 _G.Raven.teamSettings.enemy.name = true
 _G.Raven.teamSettings.enemy.healthBar = true
 _G.Raven.teamSettings.enemy.boxColor = { Color3.new(1, 0, 1), 1 }
