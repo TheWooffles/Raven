@@ -59,7 +59,7 @@ local function getBoundingBox(parts)
 		end
 	end
 	
-	if min.X == math.huge then return CFrame.new(), Vector3.zero end
+	if min.X == math.huge then return CFrame.new(), Vector3.new(0, 0, 0) end
 
 	local center = (min + max) * 0.5
 	local front = Vector3.new(center.X, center.Y, max.Z)
@@ -284,7 +284,7 @@ function EspObject:Update(deltaTime)
 		self.corners = calculateCorners(getBoundingBox(self.charCache))
 	elseif self.options.offScreenArrow then
 		local cframe = Camera.CFrame
-		local flat = CFrame.fromMatrix(cframe.Position, cframe.RightVector, Vector3.yAxis)
+		local flat = CFrame.fromMatrix(cframe.Position, cframe.RightVector, Vector3.new(0, 1, 0))
 		local objectSpace = flat:PointToObjectSpace(head.Position)
 		self.direction = Vector2.new(objectSpace.X, objectSpace.Z).Unit
 	end
@@ -378,7 +378,7 @@ function EspObject:Render()
 		name.Transparency = options.nameColor[2]
 		name.Outline = options.nameOutline
 		name.OutlineColor = parseColor(options.nameOutlineColor, true)
-		name.Position = (corners.topLeft + corners.topRight) * 0.5 - Vector2.yAxis * name.TextBounds.Y - NAME_OFFSET
+		name.Position = (corners.topLeft + corners.topRight) * 0.5 - Vector2.new(0, 1) * name.TextBounds.Y - NAME_OFFSET
 	end
 	
 	-- Distance
@@ -430,7 +430,7 @@ function EspObject:Render()
 	if showArrow then
 		local arrow = hidden.arrow
 		local center = ViewportSize * 0.5
-		arrow.PointA = (center + self.direction * options.offScreenArrowRadius):Min(ViewportSize - Vector2.one * 25):Max(Vector2.one * 25)
+		arrow.PointA = (center + self.direction * options.offScreenArrowRadius):Min(ViewportSize - Vector2.new(1, 1) * 25):Max(Vector2.new(1, 1) * 25)
 		arrow.PointB = arrow.PointA - rotateVector(self.direction, 0.45) * options.offScreenArrowSize
 		arrow.PointC = arrow.PointA - rotateVector(self.direction, -0.45) * options.offScreenArrowSize
 		arrow.Color = parseColor(options.offScreenArrowColor[1])
