@@ -1,12 +1,595 @@
-if _G.Raven then
-    _G.Raven.Unload()
+if _G.UnloadRaven then
+    _G.UnloadRaven()
 end
 
-_G.Raven = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheWooffles/Raven/master/Src/Raven"))()
-_G.Raven.teamSettings.enemy.enabled = true
-_G.Raven.teamSettings.enemy.box = true
-_G.Raven.teamSettings.enemy.box3d = true
-_G.Raven.teamSettings.enemy.name = true
-_G.Raven.teamSettings.enemy.healthBar = true
-_G.Raven.teamSettings.enemy.boxColor = { Color3.new(1, 0, 1), 1 }
-_G.Raven.Load()
+local Raven = {
+    Aimbot = {
+        Enabled       = false,
+        TeamCheck     = true,
+        WallCheck     = false,
+        SwitchTargets = true, -- If true, switches target when vision is lost
+        Keybind       = Enum.KeyCode.LeftBracket,
+        TargetPart    = "Head",
+        Mode          = "Target", -- "Fov" | "Target"
+        Type          = "Mouse", -- "Mouse" | "Camera" (Auto-switches based on perspective now)
+        Radius        = 70,
+        Smoothness    = 0.5, -- 0.1 = Smooth tracking
+        Prediction    = 0, -- 0.135 [OPTIMIZED] Better default prediction
+    },
+    Visuals = {
+        Cursor = { -- FOV Circle
+            Enabled   = false,
+            Color     = Color3.fromRGB(255, 255, 255),
+            Radius    = 30,
+            Thickness = 1,
+            Outline   = true, -- [NEW] Outline for better visibility
+        },
+        Highlight = { -- Target Highlight
+            Enabled      = true,
+            FillColor    = Color3.fromRGB(140, 0, 255), -- [IMPROVED] Purple default
+            OutlineColor = Color3.fromRGB(255, 255, 255),
+            Pulse        = true, -- [NEW] Pulse effect
+        },
+        MouseIcon = { -- Custom Mouse Icon
+            Enabled = true,
+            Id      = "http://www.roblox.com/asset?id=4882930015",
+        },
+    },
+    World = { -- [NEW] World Visuals
+        LowGFX  = true, -- Removes textures/materials
+        Shadows = true,  -- Toggles GlobalShadows
+    },
+    Misc = {
+        CFrameSpeed = {
+            Enabled = false,
+            Keybind = Enum.KeyCode.RightBracket,
+            Speed   = 1,
+        },
+        Whitelist = {
+            Enabled = true,
+            Players = {"ggtm","LuckiLover21"}, -- Add display names here (case-sensitive)
+        },
+    },
+
+    drawings    = {},
+    connections = {},
+    hooks       = {},
+
+    loaded = false,
+    dev    = true, -- Set to true to see FPS/Ping/Location info
+}
+_G.Raven = Raven
+
+--// Services & Variables
+local Players          = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService       = game:GetService("RunService")
+local Stats            = game:GetService("Stats")
+local HttpService      = game:GetService("HttpService")
+local Lighting         = game:GetService("Lighting")
+local LocalPlayer      = Players.LocalPlayer
+local Camera           = workspace.CurrentCamera
+
+local CurrentTarget    = nil -- Script-level variable to hold the locked target
+local CurrentHighlight = nil -- [NEW] Holds the Highlight instance
+local ServerLocation   = "Unknown"
+
+--// Fetch Server Location
+task.spawn(function()
+    pcall(function()
+        local response = game:HttpGet("http://ip-api.com/json/")
+        local data = HttpService:JSONDecode(response)
+        ServerLocation = data.countryCode or "Unknown"
+    end)
+end)
+
+--// User Interface
+Raven.drawings.Cursor = Drawing.new("Circle")
+Raven.drawings.Cursor.Visible = false
+Raven.drawings.Cursor.Radius = Raven.Visuals.Cursor.Radius
+Raven.drawings.Cursor.Transparency = 1
+Raven.drawings.Cursor.Thickness = Raven.Visuals.Cursor.Thickness
+Raven.drawings.Cursor.Filled = false
+Raven.drawings.Cursor.Color = Raven.Visuals.Cursor.Color
+Raven.drawings.Cursor.ZIndex = 2
+
+-- [NEW] Cursor Outline
+Raven.drawings.CursorOutline = Drawing.new("Circle")
+Raven.drawings.CursorOutline.Visible = false
+Raven.drawings.CursorOutline.Radius = Raven.Visuals.Cursor.Radius
+Raven.drawings.CursorOutline.Transparency = 1
+Raven.drawings.CursorOutline.Thickness = Raven.Visuals.Cursor.Thickness + 2
+Raven.drawings.CursorOutline.Filled = false
+Raven.drawings.CursorOutline.Color = Color3.new(0, 0, 0)
+Raven.drawings.CursorOutline.ZIndex = 1
+
+Raven.drawings.Notification = Drawing.new("Text")
+Raven.drawings.Notification.Visible = false
+Raven.drawings.Notification.Center = true
+Raven.drawings.Notification.Outline = true
+Raven.drawings.Notification.Font = 2
+Raven.drawings.Notification.Size = 18
+Raven.drawings.Notification.Color = Color3.new(1, 1, 1)
+Raven.drawings.Notification.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 100)
+
+-- Status Label
+Raven.drawings.StatusLabel = Drawing.new("Text")
+Raven.drawings.StatusLabel.Visible = true -- Always visible to show status
+Raven.drawings.StatusLabel.Center = true
+Raven.drawings.StatusLabel.Outline = true
+Raven.drawings.StatusLabel.Font = 2
+Raven.drawings.StatusLabel.Size = 18
+Raven.drawings.StatusLabel.Color = Color3.new(1, 0, 0) -- Default Red (Disabled)
+Raven.drawings.StatusLabel.Text = "Aimlock: Disabled"
+Raven.drawings.StatusLabel.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 125) -- Above Notification
+
+-- Dev Info Display
+Raven.drawings.DevInfo = Drawing.new("Text")
+Raven.drawings.DevInfo.Visible = false
+Raven.drawings.DevInfo.Center = false -- Right aligned manually
+Raven.drawings.DevInfo.Outline = true
+Raven.drawings.DevInfo.Font = 2
+Raven.drawings.DevInfo.Size = 16
+Raven.drawings.DevInfo.Color = Color3.new(1, 1, 1)
+Raven.drawings.DevInfo.Position = Vector2.new(Camera.ViewportSize.X - 250, Camera.ViewportSize.Y - 25)
+
+local function isPlayerAlive(player)
+    if not player or not player.Character then return false end
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health > 0
+end
+
+local function getPredictedPosition(targetPart)
+    local position = targetPart.Position
+    local velocity = targetPart.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
+    local predictionTime = Raven.Aimbot.Prediction
+    
+    return position + (velocity * predictionTime)
+end
+
+local function isWhitelisted(player)
+    if not Raven.Misc.Whitelist.Enabled then return false end
+    for _, whitelistedName in ipairs(Raven.Misc.Whitelist.Players) do
+        if player.DisplayName == whitelistedName or player.Name == whitelistedName then
+            return true
+        end
+    end
+    return false
+end
+
+-- [OPTIMIZATION] Build the filter list once per frame
+local function getIgnoredInstances()
+    local filterList = {LocalPlayer.Character}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            table.insert(filterList, player.Character)
+        end
+    end
+    return filterList
+end
+
+-- [IMPROVED] WallCheck: Checks multiple parts including limbs
+local function isTargetVisible(targetCharacter, ignoredInstances)
+    if not Raven.Aimbot.WallCheck then
+        return true
+    end
+    
+    if not LocalPlayer.Character then
+        return false
+    end
+    
+    local origin = Camera.CFrame.Position
+    -- Parts to check for visibility
+    local partsToCheck = {
+        targetCharacter:FindFirstChild("Head"),
+        targetCharacter:FindFirstChild("HumanoidRootPart"),
+        targetCharacter:FindFirstChild("Torso") or targetCharacter:FindFirstChild("UpperTorso"),
+        targetCharacter:FindFirstChild("Left Arm") or targetCharacter:FindFirstChild("LeftUpperArm"),
+        targetCharacter:FindFirstChild("Right Arm") or targetCharacter:FindFirstChild("RightUpperArm"),
+        targetCharacter:FindFirstChild("Left Leg") or targetCharacter:FindFirstChild("LeftUpperLeg"),
+        targetCharacter:FindFirstChild("Right Leg") or targetCharacter:FindFirstChild("RightUpperLeg")
+    }
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = ignoredInstances
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    for _, part in pairs(partsToCheck) do
+        if part then
+            local direction = (part.Position - origin)
+            local rayResult = workspace:Raycast(origin, direction, raycastParams)
+            
+            if rayResult == nil then
+                return true -- At least one part is visible
+            end
+        end
+    end
+    
+    return false
+end
+
+local function getClosestPlayerToMouse(ignoredInstances)
+    local closestPlayer = nil
+    local shortestDistance = nil
+    
+    if Raven.Aimbot.Mode == "Fov" then
+        shortestDistance = Raven.Aimbot.Radius
+    elseif Raven.Aimbot.Mode == "Target" then
+        shortestDistance = math.huge
+    end
+    
+    local mouse = LocalPlayer:GetMouse()
+    local mousePos = Vector2.new(mouse.X, mouse.Y)
+    local cameraPos = Camera.CFrame.Position
+    local cameraLook = Camera.CFrame.LookVector
+
+    for _, player in pairs(Players:GetPlayers()) do
+		local character = player.Character
+		local Knocked = character:GetAttribute("Knocked")
+        if player ~= LocalPlayer and isPlayerAlive(player) and not Knocked then
+            
+            if isWhitelisted(player) then
+                continue
+            end
+
+            if Raven.Aimbot.TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
+            -- Criminals ignore Inmates
+            if LocalPlayer.Team and LocalPlayer.Team.Name == "Criminals" and player.Team and player.Team.Name == "Inmates" then
+                continue
+            end
+            
+            -- [IMPROVED] Check distance to CLOSEST visible part
+            local character = player.Character
+            local partsToCheck = {
+                character:FindFirstChild("Head"),
+                character:FindFirstChild("HumanoidRootPart"),
+                character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso"),
+                character:FindFirstChild("Left Arm") or character:FindFirstChild("LeftUpperArm"),
+                character:FindFirstChild("Right Arm") or character:FindFirstChild("RightUpperArm"),
+                character:FindFirstChild("Left Leg") or character:FindFirstChild("LeftUpperLeg"),
+                character:FindFirstChild("Right Leg") or character:FindFirstChild("RightUpperLeg")
+            }
+            
+            local minPartDist = math.huge
+            local visible = false
+            
+            -- First, find the closest part to mouse
+            for _, part in pairs(partsToCheck) do
+                if part then
+                    -- Optimization: Skip if behind camera
+                    local toPart = (part.Position - cameraPos).Unit
+                    if cameraLook:Dot(toPart) > 0 then
+                        local screenPos, onScreen = Camera:WorldToScreenPoint(part.Position)
+                        if onScreen then
+                            local dist = (mousePos - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                            if dist < minPartDist then
+                                minPartDist = dist
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- If the closest part is within our search radius
+            if minPartDist < shortestDistance then
+                -- Check visibility (using our robust multi-point check)
+                if isTargetVisible(character, ignoredInstances) then
+                    shortestDistance = minPartDist
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function isFirstPerson()
+    return (Camera.Focus.p - Camera.CFrame.p).Magnitude < 1 or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+end
+
+-- [NEW] Highlight Helper Functions
+local function updateHighlight(target)
+    if not Raven.Visuals.Highlight.Enabled then
+        if CurrentHighlight then CurrentHighlight:Destroy() CurrentHighlight = nil end
+        return
+    end
+
+    if target and target.Character then
+        if not CurrentHighlight or CurrentHighlight.Parent ~= target.Character then
+            if CurrentHighlight then CurrentHighlight:Destroy() end
+            CurrentHighlight = Instance.new("Highlight")
+            CurrentHighlight.Parent = target.Character
+            CurrentHighlight.FillColor = Raven.Visuals.Highlight.FillColor
+            CurrentHighlight.OutlineColor = Raven.Visuals.Highlight.OutlineColor
+            CurrentHighlight.FillTransparency = 0.5
+            CurrentHighlight.OutlineTransparency = 0
+        end
+        
+        -- Pulse Effect
+        if Raven.Visuals.Highlight.Pulse and CurrentHighlight then
+             local t = tick() % 1
+             local alpha = 0.5 + 0.3 * math.sin(t * math.pi * 2)
+             CurrentHighlight.FillTransparency = alpha
+        else
+             CurrentHighlight.FillTransparency = 0.5
+        end
+    else
+        if CurrentHighlight then CurrentHighlight:Destroy() CurrentHighlight = nil end
+    end
+end
+
+local function removeHighlight()
+    if CurrentHighlight then
+        CurrentHighlight:Destroy()
+        CurrentHighlight = nil
+    end
+end
+
+-- [NEW] World Functions
+local function updateWorldVisuals()
+    -- Shadows
+    Lighting.GlobalShadows = Raven.World.Shadows
+    
+    -- Low GFX
+    if Raven.World.LowGFX then
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v:IsA("Terrain") then
+                v.Material = Enum.Material.SmoothPlastic
+            elseif v:IsA("Texture") or v:IsA("Decal") then
+                v.Transparency = 1
+            end
+        end
+    end
+end
+
+
+Raven.connections.MouseLock = RunService.RenderStepped:Connect(function(deltaTime)
+    -- Update Mouse Icon from Config
+    if Raven.Visuals.MouseIcon.Enabled then
+        UserInputService.MouseIcon = Raven.Visuals.MouseIcon.Id
+    else
+        UserInputService.MouseIcon = ""
+    end
+    
+    -- Update Cursor from Config
+    Raven.drawings.Cursor.Radius = Raven.Visuals.Cursor.Radius
+    Raven.drawings.Cursor.Color = Raven.Visuals.Cursor.Color
+    Raven.drawings.Cursor.Thickness = Raven.Visuals.Cursor.Thickness
+    
+    -- Update Cursor Outline
+    Raven.drawings.CursorOutline.Radius = Raven.Visuals.Cursor.Radius
+    Raven.drawings.CursorOutline.Thickness = Raven.Visuals.Cursor.Thickness + 2
+    
+    local mouse = LocalPlayer:GetMouse()
+    local mousePos = Vector2.new(mouse.X, mouse.Y)
+    Raven.drawings.Cursor.Position = mousePos
+    Raven.drawings.CursorOutline.Position = mousePos
+    
+    -- Update UI Positions
+    Raven.drawings.Notification.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 100)
+    Raven.drawings.StatusLabel.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 125)
+    
+    -- Update Dev Info
+    if Raven.dev then
+        local fps = 1 / deltaTime
+        local ping = 0
+        pcall(function()
+            ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+        
+        Raven.drawings.DevInfo.Visible = true
+        Raven.drawings.DevInfo.Text = string.format("%d FPS | %d ms | %s | rvn.", math.floor(fps), math.floor(ping), ServerLocation)
+        
+        -- Auto-align position based on text bounds
+        local textBounds = Raven.drawings.DevInfo.TextBounds
+        Raven.drawings.DevInfo.Position = Vector2.new(Camera.ViewportSize.X - textBounds.X - 20, Camera.ViewportSize.Y - 25)
+    else
+        Raven.drawings.DevInfo.Visible = false
+    end
+    
+    -- Update Status Label
+    if Raven.Aimbot.Enabled then
+        Raven.drawings.StatusLabel.Text = "Aimlock: Enabled"
+        Raven.drawings.StatusLabel.Color = Color3.fromRGB(0, 255, 0) -- Green
+    else
+        Raven.drawings.StatusLabel.Text = "Aimlock: Disabled"
+        Raven.drawings.StatusLabel.Color = Color3.fromRGB(255, 0, 0) -- Red
+    end
+    
+    if not isPlayerAlive(LocalPlayer) then
+        CurrentTarget = nil
+        Raven.drawings.Notification.Visible = false
+        removeHighlight()
+        return
+    end
+    
+    if Raven.Aimbot.Enabled then
+        local ignoredInstances = getIgnoredInstances()
+        local shouldFindNewTarget = false
+        
+        -- 1. Validate Current Target
+        if CurrentTarget then
+            if not isPlayerAlive(CurrentTarget) then
+                shouldFindNewTarget = true
+                CurrentTarget = nil
+            else
+                -- Check team logic
+                if LocalPlayer.Team and LocalPlayer.Team.Name == "Criminals" and CurrentTarget.Team and CurrentTarget.Team.Name == "Inmates" then
+                    shouldFindNewTarget = true
+                    CurrentTarget = nil
+                else
+                    -- Check visibility
+                    if not isTargetVisible(CurrentTarget.Character, ignoredInstances) then
+                         if Raven.Aimbot.SwitchTargets then
+                             shouldFindNewTarget = true
+                             CurrentTarget = nil -- [FIX] Drop target immediately if invisible and switching is on
+                         end
+                    end
+                end
+            end
+        else
+            shouldFindNewTarget = true
+        end
+        
+        -- 2. Find New Target if needed
+        if shouldFindNewTarget then
+            local newTarget = getClosestPlayerToMouse(ignoredInstances)
+            if newTarget then
+                CurrentTarget = newTarget
+            end
+        end
+        
+        -- 3. Aim at Current Target & Update Notification
+        if CurrentTarget and CurrentTarget.Character then
+            Raven.drawings.Notification.Visible = true
+            Raven.drawings.Notification.Text = "Target: " .. CurrentTarget.DisplayName
+            
+            -- Update Highlight
+            updateHighlight(CurrentTarget)
+            
+            local targetPart = CurrentTarget.Character:FindFirstChild(Raven.Aimbot.TargetPart) or CurrentTarget.Character:FindFirstChild("Head")
+            
+            if targetPart then
+                local partPos = getPredictedPosition(targetPart)
+                
+                if isFirstPerson() then
+                    local targetCFrame = CFrame.new(Camera.CFrame.p, partPos)
+                    if Raven.Aimbot.Smoothness == 1 then
+                        Camera.CFrame = targetCFrame
+                    else
+                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.clamp(Raven.Aimbot.Smoothness, 0, 1))
+                    end
+                else
+                    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                        return
+                    end
+                    
+                    local screenPos, onScreen = Camera:WorldToScreenPoint(partPos)
+                    
+                    if onScreen then
+                        local mousePos = Vector2.new(mouse.X, mouse.Y)
+                        local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                        local Pos
+                        
+                        if Raven.Aimbot.Smoothness == 1 then
+                            Pos = targetPos
+                        elseif Raven.Aimbot.Smoothness < 1 then
+                            Pos = mousePos:Lerp(targetPos, math.clamp(Raven.Aimbot.Smoothness, 0, 1))
+                        else
+                             Pos = targetPos
+                        end
+                        
+                        local delta = Pos - mousePos
+                        mousemoverel(delta.X, delta.Y)
+                    end
+                end
+            end
+        else
+             Raven.drawings.Notification.Visible = false
+             removeHighlight()
+        end
+    else
+        CurrentTarget = nil
+        Raven.drawings.Notification.Visible = false
+        removeHighlight()
+    end
+end)
+
+-- CFrame Speed Loop
+Raven.connections.Speed = RunService.Heartbeat:Connect(function()
+    if Raven.Misc.CFrameSpeed.Enabled and isPlayerAlive(LocalPlayer) then
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if humanoid and rootPart and humanoid.MoveDirection.Magnitude > 0 then
+            rootPart.CFrame = rootPart.CFrame + (humanoid.MoveDirection * Raven.Misc.CFrameSpeed.Speed)
+        end
+    end
+end)
+
+Raven.connections.InputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    -- MouseLock Toggle
+    if input.KeyCode == Raven.Aimbot.Keybind then
+        Raven.Aimbot.Enabled = not Raven.Aimbot.Enabled
+        if Raven.Aimbot.Enabled then
+            if Raven.Visuals.Cursor.Enabled then -- Check new cursor config
+                Raven.drawings.Cursor.Visible = true
+                if Raven.Visuals.Cursor.Outline then
+                    Raven.drawings.CursorOutline.Visible = true
+                end
+            end
+        else
+            Raven.drawings.Cursor.Visible = false
+            Raven.drawings.CursorOutline.Visible = false
+            CurrentTarget = nil
+            Raven.drawings.Notification.Visible = false
+            removeHighlight()
+        end
+    end
+    
+    -- CFrame Speed Toggle
+    if input.KeyCode == Raven.Misc.CFrameSpeed.Keybind then
+        Raven.Misc.CFrameSpeed.Enabled = not Raven.Misc.CFrameSpeed.Enabled
+        print("Raven | Speed: " .. tostring(Raven.Misc.CFrameSpeed.Enabled))
+    end
+    end
+end)
+
+-- Initial World Update
+updateWorldVisuals()
+
+
+--// Load RavenOwl ESP
+local RavenOwl
+pcall(function()
+    RavenOwl = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheWooffles/Raven/master/Src/RavenOwl"))()
+end)
+
+if RavenOwl then
+    RavenOwl.Load()
+    
+    -- Configure ESP (Name & HealthBar only)
+    local enemySettings = RavenOwl.teamSettings.enemy
+    enemySettings.enabled = true
+    enemySettings.name = true
+    enemySettings.healthBar = true
+    enemySettings.box = false
+    enemySettings.chams = false
+    enemySettings.tracer = false
+    enemySettings.distance = false
+    enemySettings.weapon = false
+    enemySettings.offScreenArrow = false
+    
+    print("Raven | ESP Loaded")
+end
+
+_G.UnloadRaven = function()
+    for _, connection in pairs(Raven.connections) do
+        connection:Disconnect()
+    end
+    for _, drawing in pairs(Raven.drawings) do
+        drawing:Destroy()
+    end
+    removeHighlight()
+    UserInputService.MouseIcon = ''
+    
+    -- Unload ESP
+    if RavenOwl then
+        RavenOwl.Unload()
+    end
+    
+    -- Reset World Settings
+    Lighting.GlobalShadows = true
+    -- Note: Cannot easily revert LowGFX without storing original states, so we leave it.
+    
+    print("Raven | Unloaded!")
+end
+
+Raven.loaded = true
+print("Raven | Loaded!")
