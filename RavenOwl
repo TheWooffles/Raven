@@ -34,15 +34,32 @@ local function isBodyPart(name)
 end
 
 local function getBoundingBox(parts)
-	local min, max
+	local min, max = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
+	
 	for i = 1, #parts do
 		local part = parts[i]
 		local cframe, size = part.CFrame, part.Size
-		min = min and min:Min((cframe - size * 0.5).Position) or (cframe - size * 0.5).Position
-		max = max and max:Max((cframe + size * 0.5).Position) or (cframe + size * 0.5).Position
+		local sx, sy, sz = size.X, size.Y, size.Z
+		
+		-- Calculate all 8 corners of the part in world space
+		local corners = {
+			cframe * Vector3.new(-sx, -sy, -sz) * 0.5,
+			cframe * Vector3.new(-sx, -sy, sz) * 0.5,
+			cframe * Vector3.new(-sx, sy, -sz) * 0.5,
+			cframe * Vector3.new(-sx, sy, sz) * 0.5,
+			cframe * Vector3.new(sx, -sy, -sz) * 0.5,
+			cframe * Vector3.new(sx, -sy, sz) * 0.5,
+			cframe * Vector3.new(sx, sy, -sz) * 0.5,
+			cframe * Vector3.new(sx, sy, sz) * 0.5
+		}
+		
+		for _, corner in ipairs(corners) do
+			min = min:Min(corner)
+			max = max:Max(corner)
+		end
 	end
 	
-	if not min or not max then return CFrame.new(), Vector3.zero end
+	if min.X == math.huge then return CFrame.new(), Vector3.zero end
 
 	local center = (min + max) * 0.5
 	local front = Vector3.new(center.X, center.Y, max.Z)
@@ -140,7 +157,7 @@ function HighlightManager:Update()
 
 	for player, highlight in pairs(self._highlights) do
 		if highlight.Adornee then
-			local dist = (highlight.Adornee.Position - myPos).Magnitude
+			local dist = (highlight.Adornee:GetPivot().Position - myPos).Magnitude
 			table.insert(candidates, { player = player, highlight = highlight, dist = dist })
 		else
 			highlight.Enabled = false
@@ -268,7 +285,7 @@ function EspObject:Update(deltaTime)
 	elseif self.options.offScreenArrow then
 		local cframe = Camera.CFrame
 		local flat = CFrame.fromMatrix(cframe.Position, cframe.RightVector, Vector3.yAxis)
-		local objectSpace = CFrame.identity.PointToObjectSpace(flat, head.Position)
+		local objectSpace = flat:PointToObjectSpace(head.Position)
 		self.direction = Vector2.new(objectSpace.X, objectSpace.Z).Unit
 	end
 end

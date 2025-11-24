@@ -6,7 +6,7 @@ local Raven = {
     Aimbot = {
         Enabled       = false,
         TeamCheck     = true,
-        WallCheck     = false,
+        WallCheck     = true,
         SwitchTargets = true, -- If true, switches target when vision is lost
         Keybind       = Enum.KeyCode.LeftBracket,
         TargetPart    = "Head",
@@ -538,7 +538,7 @@ Raven.connections.InputBegan = UserInputService.InputBegan:Connect(function(inpu
         Raven.Misc.CFrameSpeed.Enabled = not Raven.Misc.CFrameSpeed.Enabled
         print("Raven | Speed: " .. tostring(Raven.Misc.CFrameSpeed.Enabled))
     end
-    end
+
 end)
 
 -- Initial World Update
@@ -546,28 +546,12 @@ updateWorldVisuals()
 
 
 --// Load RavenOwl ESP
-local RavenOwl
-pcall(function()
-    RavenOwl = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheWooffles/Raven/master/Src/RavenOwl"))()
-end)
-
-if RavenOwl then
-    RavenOwl.Load()
+local RavenOwl = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheWooffles/Raven/main/RavenOwl"))()
+RavenOwl.teamSettings.enemy.enabled = true
+RavenOwl.teamSettings.enemy.name = true
+RavenOwl.teamSettings.enemy.healthBar = true
+RavenOwl.teamSettings.enemy.box = false
     
-    -- Configure ESP (Name & HealthBar only)
-    local enemySettings = RavenOwl.teamSettings.enemy
-    enemySettings.enabled = true
-    enemySettings.name = true
-    enemySettings.healthBar = true
-    enemySettings.box = false
-    enemySettings.chams = false
-    enemySettings.tracer = false
-    enemySettings.distance = false
-    enemySettings.weapon = false
-    enemySettings.offScreenArrow = false
-    
-    print("Raven | ESP Loaded")
-end
 
 _G.UnloadRaven = function()
     for _, connection in pairs(Raven.connections) do
@@ -591,5 +575,6 @@ _G.UnloadRaven = function()
     print("Raven | Unloaded!")
 end
 
+RavenOwl.Load()
 Raven.loaded = true
 print("Raven | Loaded!")
